@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit Masters — Satellite Strategy Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --void: #02040a;
+    --deep: #060d1a;
+    --panel: #0a1628;
+    --card: #0d1f38;
+    --border: #1a3a5c;
+    --glow: #00d4ff;
+    --glow2: #7b2fff;
+    --amber: #ffb700;
+    --green: #00ff88;
+    --red: #ff3355;
+    --text: #c8e0f4;
+    --dim: #4a6680;
+    --gold: #ffd700;
+    --silver: #c0c0c0;
+    --bronze: #cd7f32;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Starfield */
+  #starfield {
+    position: fixed; inset:0; z-index:0;
+    pointer-events: none;
+  }
+
+  .screen { display:none; position:relative; z-index:1; min-height:100vh; }
+  .screen.active { display:flex; flex-direction:column; }
+
+  /* ── LOBBY ── */
+  #lobby { align-items:center; justify-content:center; padding:40px 20px; }
+
+  .logo {
+    text-align:center; margin-bottom:40px;
+  }
+  .logo h1 {
+    font-family:'Orbitron',monospace; font-size:clamp(2.5rem,6vw,5rem);
+    font-weight:900; letter-spacing:0.08em;
+    background: linear-gradient(135deg, #00d4ff 0%, #7b2fff 50%, #00ff88 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 30px rgba(0,212,255,0.4));
+    animation: pulseTitle 3s ease-in-out infinite;
+  }
+  @keyframes pulseTitle {
+    0%,100%{filter:drop-shadow(0 0 20px rgba(0,212,255,0.4))}
+    50%{filter:drop-shadow(0 0 50px rgba(123,47,255,0.7))}
+  }
+  .logo p { font-family:'Share Tech Mono'; color:var(--glow); letter-spacing:0.2em; margin-top:8px; font-size:0.85rem; opacity:0.8; }
+
+  .join-box {
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:40px;
+    width:100%; max-width:480px;
+    box-shadow: 0 0 60px rgba(0,212,255,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .join-box h2 { font-family:'Orbitron'; font-size:1.1rem; color:var(--glow); margin-bottom:24px; text-align:center; letter-spacing:0.1em; }
+
+  .field-group { margin-bottom:18px; }
+  .field-group label { display:block; font-size:0.75rem; color:var(--dim); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px; }
+  .field-group input, .field-group select {
+    width:100%; padding:12px 16px;
+    background: var(--deep); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); font-family:'Exo 2'; font-size:1rem;
+    outline:none; transition:border-color 0.2s;
+  }
+  .field-group input:focus, .field-group select:focus { border-color:var(--glow); box-shadow:0 0 0 2px rgba(0,212,255,0.1); }
+
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:14px 32px; border:none; border-radius:8px; cursor:pointer;
+    font-family:'Orbitron'; font-size:0.85rem; font-weight:700; letter-spacing:0.12em;
+    text-transform:uppercase; transition:all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--glow), var(--glow2));
+    color:#fff; width:100%;
+    box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+  }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 30px rgba(0,212,255,0.5); }
+  .btn-secondary { background:var(--card); border:1px solid var(--border); color:var(--text); }
+  .btn-secondary:hover { border-color:var(--glow); color:var(--glow); }
+  .btn-bid {
+    background:linear-gradient(135deg,#ff6600,#ffb700); color:#000; font-weight:700;
+    padding:10px 20px; font-size:0.8rem;
+  }
+  .btn-bid:hover { transform:scale(1.05); box-shadow:0 4px 20px rgba(255,183,0,0.5); }
+  .btn-bid:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+  .players-waiting {
+    margin-top:24px; padding:16px;
+    background:var(--deep); border-radius:8px; border:1px solid var(--border);
+  }
+  .players-waiting h3 { font-family:'Orbitron'; font-size:0.75rem; color:var(--dim); letter-spacing:0.1em; margin-bottom:10px; }
+  .player-slot {
+    display:flex; align-items:center; gap:10px; padding:6px 0;
+    border-bottom:1px solid rgba(26,58,92,0.5);
+  }
+  .player-slot:last-child { border-bottom:none; }
+  .slot-dot { width:8px; height:8px; border-radius:50%; }
+  .slot-dot.filled { background:var(--green); box-shadow:0 0 8px var(--green); animation:blink 1.5s infinite; }
+  .slot-dot.empty { background:var(--dim); }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .slot-name { font-size:0.9rem; }
+
+  /* ── HEADER BAR ── */
+  .game-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 24px; background:var(--panel);
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:100;
+  }
+  .gh-title { font-family:'Orbitron'; font-size:1rem; color:var(--glow); letter-spacing:0.1em; }
+  .gh-round { font-family:'Share Tech Mono'; color:var(--amber); font-size:0.85rem; }
+  .gh-credits { font-family:'Orbitron'; font-size:0.9rem; color:var(--green); }
+
+  /* ── ROUND 1 AUCTION ── */
+  #auction { flex-direction:column; }
+  .auction-main { display:grid; grid-template-columns:1fr 320px; gap:0; flex:1; }
+  .auction-center { padding:24px; overflow-y:auto; }
+  .auction-sidebar { background:var(--panel); border-left:1px solid var(--border); padding:20px; overflow-y:auto; }
+
+  .section-title {
+    font-family:'Orbitron'; font-size:0.8rem; letter-spacing:0.15em; color:var(--dim);
+    text-transform:uppercase; margin-bottom:16px;
+  }
+
+  /* Current satellite on auction */
+  .current-auction {
+    background: var(--card);
+    border:1px solid var(--glow);
+    border-radius:16px; padding:24px; margin-bottom:24px;
+    box-shadow:0 0 40px rgba(0,212,255,0.1);
+    position:relative; overflow:hidden;
+  }
+  .current-auction::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,rgba(0,212,255,0.03),rgba(123,47,255,0.03));
+    pointer-events:none;
+  }
+  .auction-sat-header { display:flex; align-items:flex-start; gap:20px; margin-bottom:20px; }
+  .sat-orbit-badge {
+    padding:4px 12px; border-radius:20px; font-family:'Orbitron'; font-size:0.65rem; font-weight:700;
+    letter-spacing:0.1em;
+  }
+  .badge-LEO { background:rgba(0,255,136,0.15); border:1px solid var(--green); color:var(--green); }
+  .badge-MEO { background:rgba(0,212,255,0.15); border:1px solid var(--glow); color:var(--glow); }
+  .badge-GEO { background:rgba(123,47,255,0.15); border:1px solid var(--glow2); color:var(--glow2); }
+
+  .sat-name { font-family:'Orbitron'; font-size:1.6rem; font-weight:700; color:#fff; }
+  .sat-tagline { color:var(--dim); font-size:0.85rem; margin-top:4px; }
+
+  .sat-specs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .spec-item { background:var(--deep); border-radius:8px; padding:12px; text-align:center; }
+  .spec-val { font-family:'Orbitron'; font-size:1.1rem; font-weight:700; color:var(--glow); }
+  .spec-lbl { font-size:0.7rem; color:var(--dim); margin-top:4px; letter-spacing:0.1em; text-transform:uppercase; }
+
+  /* Bid area */
+  .bid-area {
+    display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+  }
+  .current-bid-display {
+    background:var(--deep); border-radius:8px; padding:12px 20px;
+    border:1px solid var(--amber); flex:1; min-width:180px;
+  }
+  .cbd-label { font-size:0.7rem; color:var(--dim); letter-spacing:0.1em; text-transform:uppercase; }
+  .cbd-value { font-family:'Orbitron'; font-size:1.4rem; font-weight:700; color:var(--amber); }
+  .cbd-leader { font-size:0.75rem; color:var(--text); margin-top:2px; }
+
+  .bid-input-group { display:flex; gap:8px; align-items:center; }
+  .bid-input {
+    width:120px; padding:10px 14px;
+    background:var(--deep); border:1px solid var(--border); border-radius:8px;
+    color:var(--amber); font-family:'Orbitron'; font-size:1rem;
+    outline:none;
+  }
+  .bid-input:focus { border-color:var(--amber); }
+
+  /* Timer */
+  .auction-timer {
+    text-align:center; margin-bottom:20px;
+    font-family:'Orbitron'; font-size:3rem; font-weight:900;
+    transition:color 0.3s;
+  }
+  .timer-urgent { color:var(--red); animation:urgentPulse 0.5s infinite; }
+  @keyframes urgentPulse { 0%,100%{opacity:1}50%{opacity:0.5} }
+  .timer-normal { color:var(--amber); }
+  .timer-label { font-size:0.7rem; color:var(--dim); letter-spacing:0.2em; margin-top:-10px; margin-bottom:16px; text-align:center; }
+
+  /* Satellite queue */
+  .sat-queue { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .sat-queue-card {
+    background:var(--deep); border:1px solid var(--border); border-radius:10px;
+    padding:12px; cursor:pointer; transition:all 0.2s; position:relative;
+  }
+  .sat-queue-card.active { border-color:var(--glow); box-shadow:0 0 20px rgba(0,212,255,0.2); }
+  .sat-queue-card.sold { opacity:0.4; }
+  .sat-queue-card.sold::after {
+    content:'SOLD'; position:absolute; inset:0;
+    background:rgba(255,51,85,0.3); border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Orbitron'; font-size:0.75rem; font-weight:700; color:var(--red);
+  }
+  .sqc-num { font-family:'Share Tech Mono'; font-size:0.7rem; color:var(--dim); }
+  .sqc-name { font-family:'Orbitron'; font-size:0.75rem; font-weight:600; margin-top:2px; }
+  .sqc-base { font-size:0.7rem; color:var(--amber); margin-top:4px; }
+
+  /* Bid log */
+  .bid-log { max-height:200px; overflow-y:auto; }
+  .bid-log-item {
+    padding:6px 0; border-bottom:1px solid rgba(26,58,92,0.5);
+    font-family:'Share Tech Mono'; font-size:0.78rem;
+  }
+  .bli-time { color:var(--dim); margin-right:8px; }
+  .bli-player { color:var(--glow); }
+  .bli-amount { color:var(--amber); float:right; }
+
+  /* Player cards sidebar */
+  .player-card {
+    background:var(--deep); border:1px solid var(--border); border-radius:10px;
+    padding:12px; margin-bottom:10px; display:flex; align-items:center; gap:12px;
+    transition:all 0.2s;
+  }
+  .player-card.you { border-color:var(--glow); }
+  .pc-avatar {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Orbitron'; font-size:0.8rem; font-weight:700;
+    flex-shrink:0;
+  }
+  .pc-info { flex:1; min-width:0; }
+  .pc-name { font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pc-credits { font-family:'Share Tech Mono'; font-size:0.75rem; color:var(--green); }
+  .pc-sat { font-size:0.7rem; color:var(--dim); margin-top:2px; }
+
+  /* ── ROUND 2 SIMULATION ── */
+  #simulation { flex-direction:column; }
+  .sim-main { display:grid; grid-template-columns:1fr 360px; gap:0; flex:1; }
+  .sim-center { padding:24px; overflow-y:auto; }
+  .sim-sidebar { background:var(--panel); border-left:1px solid var(--border); padding:20px; overflow-y:auto; }
+
+  /* Orbit Canvas */
+  .orbit-canvas-wrap {
+    background:var(--deep); border:1px solid var(--border); border-radius:16px;
+    overflow:hidden; margin-bottom:20px; position:relative;
+  }
+  #orbitCanvas { display:block; width:100%; }
+
+  /* Config panels */
+  .config-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px; }
+  .config-panel {
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px;
+  }
+  .config-panel h4 { font-family:'Orbitron'; font-size:0.75rem; color:var(--glow); letter-spacing:0.1em; margin-bottom:14px; }
+  .slider-group { margin-bottom:12px; }
+  .slider-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .slider-label { font-size:0.78rem; color:var(--text); }
+  .slider-value { font-family:'Share Tech Mono'; font-size:0.78rem; color:var(--amber); }
+  input[type=range] {
+    width:100%; accent-color:var(--glow); height:4px; cursor:pointer;
+  }
+
+  /* Results panel */
+  .results-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+  .result-card {
+    background:var(--deep); border-radius:10px; padding:14px; text-align:center;
+    border:1px solid var(--border);
+  }
+  .result-card.good { border-color:var(--green); }
+  .result-card.bad { border-color:var(--red); }
+  .rc-val { font-family:'Orbitron'; font-size:1.2rem; font-weight:700; }
+  .rc-lbl { font-size:0.7rem; color:var(--dim); margin-top:4px; letter-spacing:0.1em; text-transform:uppercase; }
+
+  /* Cycle display */
+  .cycle-bar {
+    background:var(--deep); border-radius:8px; padding:12px 16px;
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;
+    border:1px solid var(--border);
+  }
+  .cycle-label { font-family:'Orbitron'; font-size:0.75rem; color:var(--dim); letter-spacing:0.1em; }
+  .cycle-progress { display:flex; gap:6px; }
+  .cycle-dot { width:10px; height:10px; border-radius:50%; background:var(--border); transition:all 0.3s; }
+  .cycle-dot.done { background:var(--green); box-shadow:0 0 8px var(--green); }
+  .cycle-dot.current { background:var(--amber); box-shadow:0 0 8px var(--amber); animation:blink 1s infinite; }
+
+  /* Link budget formula display */
+  .formula-display {
+    background:var(--deep); border:1px solid rgba(123,47,255,0.4); border-radius:10px;
+    padding:16px; margin-bottom:12px; font-family:'Share Tech Mono'; font-size:0.8rem;
+  }
+  .formula-line { margin-bottom:6px; color:var(--dim); }
+  .formula-line .val { color:var(--glow2); }
+  .formula-result { color:var(--glow); font-size:1rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+
+  /* Leaderboard */
+  .leaderboard { }
+  .lb-row {
+    display:flex; align-items:center; gap:12px; padding:10px 12px;
+    background:var(--deep); border-radius:8px; margin-bottom:8px;
+    border:1px solid var(--border); transition:all 0.3s;
+  }
+  .lb-row.you { border-color:var(--glow); background:rgba(0,212,255,0.05); }
+  .lb-rank {
+    font-family:'Orbitron'; font-size:1rem; font-weight:700; width:24px; text-align:center;
+  }
+  .lb-rank.r1 { color:var(--gold); }
+  .lb-rank.r2 { color:var(--silver); }
+  .lb-rank.r3 { color:var(--bronze); }
+  .lb-info { flex:1; min-width:0; }
+  .lb-name { font-size:0.85rem; font-weight:600; }
+  .lb-sat { font-size:0.7rem; color:var(--dim); }
+  .lb-score { font-family:'Orbitron'; font-size:0.85rem; color:var(--amber); text-align:right; }
+  .lb-rev { font-size:0.7rem; color:var(--green); text-align:right; }
+
+  /* Sim Cycle controls */
+  .cycle-controls { display:flex; gap:10px; margin-bottom:20px; }
+
+  /* ── RESULTS SCREEN ── */
+  #results { align-items:center; justify-content:center; padding:40px 20px; }
+  .results-container { max-width:700px; width:100%; }
+  .results-title { font-family:'Orbitron'; font-size:2rem; font-weight:900; text-align:center; margin-bottom:8px;
+    background:linear-gradient(135deg,var(--gold),var(--amber));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .results-sub { text-align:center; color:var(--dim); font-family:'Share Tech Mono'; margin-bottom:40px; letter-spacing:0.1em; }
+
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin-bottom:40px; }
+  .podium-spot {
+    display:flex; flex-direction:column; align-items:center; padding:16px 20px;
+    border-radius:12px; background:var(--card); border:1px solid var(--border);
+    transition:all 0.3s;
+  }
+  .podium-spot.p1 { border-color:var(--gold); padding:24px 28px; order:2; box-shadow:0 0 40px rgba(255,215,0,0.2); }
+  .podium-spot.p2 { order:1; }
+  .podium-spot.p3 { order:3; }
+  .podium-medal { font-size:2rem; margin-bottom:8px; }
+  .podium-name { font-family:'Orbitron'; font-size:0.85rem; font-weight:700; text-align:center; }
+  .podium-score { font-family:'Share Tech Mono'; color:var(--amber); font-size:0.9rem; margin-top:4px; }
+  .podium-title { font-size:0.7rem; color:var(--dim); margin-top:4px; text-align:center; }
+  .podium-sat { font-size:0.7rem; color:var(--glow); margin-top:4px; }
+
+  .results-table { width:100%; border-collapse:collapse; margin-bottom:30px; }
+  .results-table th {
+    font-family:'Orbitron'; font-size:0.7rem; color:var(--dim); letter-spacing:0.1em;
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .results-table td { padding:10px 12px; border-bottom:1px solid rgba(26,58,92,0.3); font-size:0.85rem; }
+  .results-table .you td { background:rgba(0,212,255,0.05); }
+
+  /* Notifications */
+  .notification-stack {
+    position:fixed; top:80px; right:20px; z-index:1000;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .notif {
+    padding:12px 20px; border-radius:8px; font-family:'Orbitron'; font-size:0.75rem;
+    letter-spacing:0.08em; max-width:300px;
+    animation:slideIn 0.3s ease;
+    border-left:3px solid;
+  }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1} }
+  .notif-success { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
+  .notif-warn { background:rgba(255,183,0,0.1); border-color:var(--amber); color:var(--amber); }
+  .notif-info { background:rgba(0,212,255,0.1); border-color:var(--glow); color:var(--glow); }
+  .notif-error { background:rgba(255,51,85,0.1); border-color:var(--red); color:var(--red); }
+
+  /* Mobile */
+  @media(max-width:768px) {
+    .auction-main, .sim-main { grid-template-columns:1fr; }
+    .auction-sidebar, .sim-sidebar { border-left:none; border-top:1px solid var(--border); }
+    .config-grid { grid-template-columns:1fr; }
+    .sat-specs-grid { grid-template-columns:repeat(2,1fr); }
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position:fixed; inset:0; z-index:9999;
+    background:var(--void);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;
+  }
+  .loading-overlay.gone { display:none; }
+  .spinner {
+    width:48px; height:48px; border:3px solid var(--border);
+    border-top-color:var(--glow); border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .load-text { font-family:'Orbitron'; color:var(--glow); font-size:0.8rem; letter-spacing:0.2em; }
+
+  /* Power bar */
+  .power-bar-wrap { height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .power-bar-fill { height:100%; border-radius:3px; transition:width 0.5s; }
+
+  /* Signal indicator */
+  .signal-indicator {
+    display:flex; gap:3px; align-items:flex-end;
+  }
+  .sig-bar {
+    width:5px; border-radius:1px;
+    transition:background 0.3s;
+  }
+
+  .tooltip {
+    position:relative; cursor:help;
+  }
+  .tooltip::after {
+    content: attr(data-tip);
+    position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--border); color:var(--text);
+    font-size:0.72rem; padding:6px 10px; border-radius:6px;
+    white-space:nowrap; pointer-events:none; opacity:0;
+    transition:opacity 0.2s; z-index:50; font-family:'Exo 2';
+  }
+  .tooltip:hover::after { opacity:1; }
+
+  .tag-you {
+    background:rgba(0,212,255,0.15); border:1px solid var(--glow);
+    color:var(--glow); font-size:0.65rem; font-family:'Orbitron'; padding:1px 6px; border-radius:10px;
+    letter-spacing:0.08em;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div class="loading-overlay" id="loader">
+  <div class="spinner"></div>
+  <div class="load-text">INITIALIZING ORBIT SYSTEMS…</div>
+</div>
+<div class="notification-stack" id="notifications"></div>
+
+<!-- ══════════════════════════════════
+     SCREEN 1: LOBBY
+══════════════════════════════════ -->
+<div class="screen active" id="lobby">
+  <div class="logo">
+    <h1>ORBIT MASTERS</h1>
+    <p>⬡ SATELLITE STRATEGY &amp; ENGINEERING GAME ⬡</p>
+  </div>
+  <div class="join-box">
+    <h2>Mission Control — Crew Registration</h2>
+    <div class="field-group">
+      <label>Pilot Name</label>
+      <input type="text" id="playerName" placeholder="Enter your callsign…" maxlength="20">
+    </div>
+    <div class="field-group">
+      <label>Room Code</label>
+      <input type="text" id="roomCode" placeholder="e.g. ORBIT42" maxlength="10" style="text-transform:uppercase">
+    </div>
+    <div class="field-group">
+      <label>Mode</label>
+      <select id="gameMode">
+        <option value="multi">Multiplayer (2–6 Players)</option>
+        <option value="solo">Solo (vs AI Bots)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="joinBtn">🚀 LAUNCH MISSION</button>
+
+    <div class="players-waiting" id="playersWaiting" style="display:none">
+      <h3>Connected Crew</h3>
+      <div id="playerSlots"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="startGameBtn" style="flex:1;display:none">▶ START GAME</button>
+        <div id="waitMsg" style="font-family:'Share Tech Mono';font-size:0.8rem;color:var(--dim);line-height:1.4;padding:8px 0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     SCREEN 2: AUCTION
+══════════════════════════════════ -->
+<div class="screen" id="auction">
+  <div class="game-header">
+    <div class="gh-title">🛰 ORBIT MASTERS</div>
+    <div class="gh-round" id="auctionRoundLabel">ROUND 1 — SATELLITE AUCTION</div>
+    <div class="gh-credits">₹<span id="myCredits">1000</span> SC</div>
+  </div>
+
+  <div class="auction-main">
+    <div class="auction-center">
+      <div class="section-title">Current Satellite on Auction</div>
+      <div class="current-auction" id="currentAuction"><!-- filled by JS --></div>
+
+      <div class="section-title">Auction Queue</div>
+      <div class="sat-queue" id="satQueue"><!-- filled by JS --></div>
+    </div>
+
+    <div class="auction-sidebar">
+      <div class="section-title">Crew Status</div>
+      <div id="auctionPlayers"></div>
+
+      <div class="section-title" style="margin-top:20px">Live Bid Feed</div>
+      <div class="bid-log" id="bidLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     SCREEN 3: SIMULATION
+══════════════════════════════════ -->
+<div class="screen" id="simulation">
+  <div class="game-header">
+    <div class="gh-title">🛰 ORBIT MASTERS</div>
+    <div class="gh-round">ROUND 2 — ORBIT ENGINEERING</div>
+    <div class="gh-credits">Revenue: ₹<span id="myRevenue">0</span></div>
+  </div>
+
+  <div class="sim-main">
+    <div class="sim-center">
+      <!-- Cycle progress -->
+      <div class="cycle-bar">
+        <div>
+          <div class="cycle-label">SIMULATION CYCLE</div>
+          <div style="font-family:'Orbitron';font-size:1.2rem;font-weight:700;color:var(--amber);margin-top:2px">
+            <span id="cycleNum">1</span> / 10
+          </div>
+        </div>
+        <div class="cycle-progress" id="cycleDots"></div>
+      </div>
+
+      <!-- Orbit visualization -->
+      <div class="orbit-canvas-wrap">
+        <canvas id="orbitCanvas" height="280"></canvas>
+      </div>
+
+      <!-- Config controls -->
+      <div class="config-grid">
+        <div class="config-panel">
+          <h4>⚙ Orbit Parameters</h4>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="Higher altitude = more coverage but higher latency">Altitude (km)</span>
+              <span class="slider-value" id="altVal">550</span>
+            </div>
+            <input type="range" id="altSlider" min="300" max="36000" step="100" value="550">
+          </div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="Orbit tilt vs equatorial plane">Inclination (°)</span>
+              <span class="slider-value" id="incVal">51.6</span>
+            </div>
+            <input type="range" id="incSlider" min="0" max="90" step="0.5" value="51.6">
+          </div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="0 = circular, >0 = elliptical">Eccentricity</span>
+              <span class="slider-value" id="eccVal">0.00</span>
+            </div>
+            <input type="range" id="eccSlider" min="0" max="0.5" step="0.01" value="0">
+          </div>
+          <!-- Calculated results -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono';font-size:0.78rem">
+              <span style="color:var(--dim)">Orbital Period:</span>
+              <span style="color:var(--glow)" id="orbPeriod">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono';font-size:0.78rem;margin-top:6px">
+              <span style="color:var(--dim)">Orbit Type:</span>
+              <span id="orbType">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-panel">
+          <h4>📡 Link Budget</h4>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="Transmit power in dBW">Tx Power (dBW)</span>
+              <span class="slider-value" id="txVal">20</span>
+            </div>
+            <input type="range" id="txSlider" min="5" max="40" step="1" value="20">
+          </div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="Transmit antenna gain in dBi">Tx Gain (dBi)</span>
+              <span class="slider-value" id="txgVal">30</span>
+            </div>
+            <input type="range" id="txgSlider" min="10" max="55" step="1" value="30">
+          </div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label tooltip" data-tip="Operating frequency affects path loss">Frequency (GHz)</span>
+              <span class="slider-value" id="freqVal">12.0</span>
+            </div>
+            <input type="range" id="freqSlider" min="1" max="30" step="0.5" value="12">
+          </div>
+          <!-- Formula display -->
+          <div class="formula-display" style="margin-top:12px">
+            <div class="formula-line">Pr = Pt + Gt + Gr − FSPL</div>
+            <div class="formula-line">FSPL = 20log(d) + 20log(f) + 92.4</div>
+            <div class="formula-result" id="linkResult">Received Power: — dBW</div>
+          </div>
+        </div>
+
+        <div class="config-panel">
+          <h4>⚡ Power Management</h4>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label">Solar Panel (m²)</span>
+              <span class="slider-value" id="solarVal">10</span>
+            </div>
+            <input type="range" id="solarSlider" min="2" max="50" step="1" value="10">
+          </div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label">Battery (kWh)</span>
+              <span class="slider-value" id="battVal">20</span>
+            </div>
+            <input type="range" id="battSlider" min="5" max="100" step="5" value="20">
+          </div>
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--dim);margin-bottom:4px">
+              <span>Power Status</span><span id="powerStatus">—</span>
+            </div>
+            <div class="power-bar-wrap">
+              <div class="power-bar-fill" id="powerBar" style="width:70%;background:var(--green)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-panel">
+          <h4>📶 Coverage Analysis</h4>
+          <div style="font-family:'Share Tech Mono';font-size:0.8rem">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="color:var(--dim)">Footprint:</span>
+              <span style="color:var(--green)" id="footprintVal">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="color:var(--dim)">Latency:</span>
+              <span style="color:var(--glow)" id="latencyVal">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="color:var(--dim)">Doppler Shift:</span>
+              <span style="color:var(--glow2)" id="dopplerVal">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="color:var(--dim)">Eclipse %:</span>
+              <span style="color:var(--amber)" id="eclipseVal">—</span>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:0.75rem;color:var(--dim);margin-bottom:6px;letter-spacing:0.08em;text-transform:uppercase">Revenue Estimate</div>
+            <div id="revenueEstimate" style="font-family:'Orbitron';font-size:1.3rem;color:var(--amber);font-weight:700">₹—</div>
+            <div id="revenueBreakdown" style="font-size:0.7rem;color:var(--dim);margin-top:4px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cycle-controls">
+        <button class="btn btn-primary" id="runCycleBtn" style="flex:1">▶ RUN SIMULATION CYCLE</button>
+        <button class="btn btn-secondary" id="autoRunBtn">⚡ AUTO-RUN</button>
+      </div>
+
+      <div id="cycleResultMsg" style="min-height:40px"></div>
+    </div>
+
+    <div class="sim-sidebar">
+      <div class="section-title">Live Leaderboard</div>
+      <div id="leaderboard"></div>
+
+      <div class="section-title" style="margin-top:20px">My Satellite</div>
+      <div id="mySatCard" style="background:var(--deep);border-radius:10px;padding:14px;border:1px solid var(--border)"></div>
+
+      <div class="section-title" style="margin-top:20px">Theory Corner</div>
+      <div id="theoryBox" style="background:var(--deep);border-radius:10px;padding:14px;border:1px solid rgba(123,47,255,0.3);font-size:0.8rem;line-height:1.6;color:var(--text)"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     SCREEN 4: RESULTS
+══════════════════════════════════ -->
+<div class="screen" id="results">
+  <div class="results-container">
+    <div class="results-title">🏆 MISSION COMPLETE</div>
+    <div class="results-sub">ORBIT MASTERS — FINAL RANKINGS</div>
+    <div class="podium" id="podium"></div>
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>#</th><th>PILOT</th><th>SATELLITE</th>
+          <th>REVENUE</th><th>UPTIME</th><th>EFFICIENCY</th><th>TOTAL</th>
+        </tr>
+      </thead>
+      <tbody id="resultsTableBody"></tbody>
+    </table>
+    <button class="btn btn-primary" id="playAgainBtn" style="max-width:300px;margin:0 auto;display:block">🔄 NEW MISSION</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STARFIELD
+// ══════════════════════════════════════════════════════
+(function(){
+  const c = document.getElementById('starfield');
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function resize() {
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    stars = Array.from({length:200},()=>({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:Math.random()*1.5+0.2, alpha:Math.random(),
+      speed:Math.random()*0.3+0.1
+    }));
+  }
+  resize(); window.addEventListener('resize',resize);
+  function draw(){
+    ctx.fillStyle='#02040a'; ctx.fillRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(200,224,244,${s.alpha})`;
+      ctx.fill();
+      s.alpha += (Math.random()-0.5)*0.02;
+      s.alpha = Math.max(0.05,Math.min(0.9,s.alpha));
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ══════════════════════════════════════════════════════
+//  GAME DATA
+// ══════════════════════════════════════════════════════
+const SATELLITES = [
+  { id:'s1', name:'HELIOS-7', type:'LEO', tagline:'High-speed imaging & IoT backbone',
+    altitude:550, inclination:51.6, power:3.2, payload:150, baseCost:280,
+    antennaGain:28, uplink:14.5, downlink:11.7, desc:'Low-latency LEO constellation anchor.',
+    color:'#00ff88', txPower:18, grGain:30 },
+  { id:'s2', name:'ATLAS-GEO', type:'GEO', tagline:'Pan-continental broadcast & data relay',
+    altitude:35786, inclination:0, power:12.5, payload:500, baseCost:650,
+    antennaGain:50, uplink:30, downlink:20, desc:'Full-hemisphere coverage from geostationary arc.',
+    color:'#7b2fff', txPower:30, grGain:50 },
+  { id:'s3', name:'MERIDIAN-4', type:'MEO', tagline:'Navigation augmentation & timing',
+    altitude:20200, inclination:55, power:7.8, payload:250, baseCost:420,
+    antennaGain:38, uplink:20, downlink:18, desc:'GPS-tier orbit for precision services.',
+    color:'#00d4ff', txPower:24, grGain:38 },
+  { id:'s4', name:'PHOENIX-X', type:'LEO', tagline:'Next-gen broadband swarm unit',
+    altitude:1200, inclination:70, power:5.1, payload:200, baseCost:350,
+    antennaGain:32, uplink:28.5, downlink:18.5, desc:'Higher LEO with polar coverage advantage.',
+    color:'#ff6600', txPower:20, grGain:32 },
+  { id:'s5', name:'TITAN-SAR', type:'MEO', tagline:'Synthetic aperture radar & Earth obs.',
+    altitude:8000, inclination:45, power:9.0, payload:180, baseCost:480,
+    antennaGain:42, uplink:25, downlink:9.7, desc:'X-band SAR for all-weather imaging.',
+    color:'#ff3355', txPower:26, grGain:42 },
+  { id:'s6', name:'AURORA-Q', type:'LEO', tagline:'Quantum-comm & experimental payload',
+    altitude:400, inclination:28.5, power:2.8, payload:120, baseCost:260,
+    antennaGain:25, uplink:437, downlink:193, desc:'Ultra-low orbit, quantum key distribution.',
+    color:'#ffb700', txPower:15, grGain:25 },
+];
+
+const BOT_NAMES = ['COSMO-BOT','SIGMA-AI','NOVA-UNIT','KEPLER-SYS','DELTA-PROC'];
+const AVATAR_COLORS = ['#00d4ff','#7b2fff','#00ff88','#ff6600','#ff3355','#ffb700'];
+
+// ══════════════════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════════════════
+let state = {
+  screen: 'lobby',
+  myId: null,
+  players: [],  // {id, name, credits, satellite, revenue, uptime, isBot}
+  currentSatIdx: 0,
+  auctionTimer: 60,
+  auctionTimerHandle: null,
+  soldSats: [],        // [satId,...]
+  playerOwnedSat: {},  // {playerId: satId}
+  highestBid: {},      // {satId: {amount, playerId}}
+  cycle: 1,
+  autoRun: false,
+  autoHandle: null,
+  simConfig: {
+    altitude:550, inclination:51.6, eccentricity:0,
+    txPower:20, txGain:30, freq:12,
+    solar:10, battery:20
+  },
+  playerRevenues: {},  // {playerId: total}
+  playerUptimes: {},
+  playerEfficiencies: {},
+  cycleResults: [],
+  roomCode:'',
+  lastBidTime: 0,
+};
+
+// ══════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════
+function $(id){ return document.getElementById(id); }
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(name).classList.add('active');
+  state.screen = name;
+}
+function notify(msg, type='info'){
+  const div = document.createElement('div');
+  div.className = `notif notif-${type}`;
+  div.textContent = msg;
+  $('notifications').appendChild(div);
+  setTimeout(()=>div.style.opacity='0', 3000);
+  setTimeout(()=>div.remove(), 3500);
+}
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function getMe(){ return state.players.find(p=>p.id===state.myId); }
+function getSat(id){ return SATELLITES.find(s=>s.id===id); }
+function fmtCr(n){ return '₹'+Math.round(n); }
+
+// ══════════════════════════════════════════════════════
+//  LOBBY
+// ══════════════════════════════════════════════════════
+$('joinBtn').addEventListener('click', ()=>{
+  const name = $('playerName').value.trim();
+  const room = $('roomCode').value.trim().toUpperCase() || 'ORBIT'+Math.floor(Math.random()*90+10);
+  const mode = $('gameMode').value;
+  if(!name){ notify('Enter your callsign!','warn'); return; }
+
+  $('roomCode').value = room;
+  state.roomCode = room;
+  state.myId = uid();
+  
+  // Create player
+  const me = { id:state.myId, name, credits:1000, satellite:null, revenue:0, uptime:0, isBot:false };
+  state.players = [me];
+  state.playerRevenues[state.myId] = 0;
+  state.playerUptimes[state.myId] = 0;
+  state.playerEfficiencies[state.myId] = 0;
+
+  if(mode === 'solo'){
+    // Add bots
+    const numBots = 5;
+    for(let i=0;i<numBots;i++){
+      const bid = { id:uid(), name:BOT_NAMES[i], credits:1000, satellite:null, revenue:0, uptime:0, isBot:true };
+      state.players.push(bid);
+      state.playerRevenues[bid.id] = 0;
+      state.playerUptimes[bid.id] = 0;
+      state.playerEfficiencies[bid.id] = 0;
+    }
+    renderLobbyPlayers();
+    $('playersWaiting').style.display='block';
+    $('startGameBtn').style.display='block';
+    $('waitMsg').textContent = '';
+  } else {
+    // Simulate multiplayer via shared localStorage channel
+    // For demo, add 3 AI players + allow manual start
+    for(let i=0;i<3;i++){
+      const bid = { id:uid(), name:BOT_NAMES[i], credits:1000, satellite:null, revenue:0, uptime:0, isBot:true };
+      state.players.push(bid);
+      state.playerRevenues[bid.id] = 0;
+      state.playerUptimes[bid.id] = 0;
+      state.playerEfficiencies[bid.id] = 0;
+    }
+    renderLobbyPlayers();
+    $('playersWaiting').style.display='block';
+    $('startGameBtn').style.display='block';
+    $('waitMsg').textContent = `Room: ${room} | Invite others to join!`;
+  }
+});
+
+function renderLobbyPlayers(){
+  const container = $('playerSlots');
+  container.innerHTML = state.players.map(p=>`
+    <div class="player-slot">
+      <div class="slot-dot filled" style="background:${AVATAR_COLORS[state.players.indexOf(p)]}"></div>
+      <span class="slot-name">${p.name}${p.id===state.myId?' <span class="tag-you">YOU</span>':''}</span>
+      ${p.isBot?'<span style="font-size:0.65rem;color:var(--dim);margin-left:auto">BOT</span>':''}
+    </div>
+  `).join('');
+}
+
+$('startGameBtn').addEventListener('click', startAuction);
+
+// ══════════════════════════════════════════════════════
+//  AUCTION ROUND
+// ══════════════════════════════════════════════════════
+function startAuction(){
+  // Initialize bid state
+  SATELLITES.forEach(s=>{
+    state.highestBid[s.id] = {amount: s.baseCost, playerId: null};
+  });
+  state.currentSatIdx = 0;
+  state.soldSats = [];
+  renderAuctionPlayers();
+  renderSatQueue();
+  showCurrentAuction();
+  showScreen('auction');
+  startAuctionTimer();
+}
+
+function renderAuctionPlayers(){
+  const me = getMe();
+  $('auctionPlayers').innerHTML = state.players.map(p=>{
+    const ci = state.players.indexOf(p);
+    const ownedSatId = state.playerOwnedSat[p.id];
+    const ownedSat = ownedSatId ? getSat(ownedSatId) : null;
+    return `<div class="player-card${p.id===state.myId?' you':''}">
+      <div class="pc-avatar" style="background:${AVATAR_COLORS[ci]}22;color:${AVATAR_COLORS[ci]};border:1px solid ${AVATAR_COLORS[ci]}44">
+        ${p.name.slice(0,2).toUpperCase()}
+      </div>
+      <div class="pc-info">
+        <div class="pc-name">${p.name}${p.id===state.myId?' <span class="tag-you">YOU</span>':''}</div>
+        <div class="pc-credits">${fmtCr(p.credits)} SC</div>
+        <div class="pc-sat">${ownedSat?'🛰 '+ownedSat.name:'No satellite yet'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSatQueue(){
+  $('satQueue').innerHTML = SATELLITES.map((s,i)=>{
+    const sold = state.soldSats.includes(s.id);
+    const active = i === state.currentSatIdx;
+    return `<div class="sat-queue-card${active?' active':''}${sold?' sold':''}">
+      <div class="sqc-num">SAT-${i+1}</div>
+      <div class="sqc-name" style="color:${s.color}">${s.name}</div>
+      <div style="margin-top:4px"><span class="sat-orbit-badge badge-${s.type}">${s.type}</span></div>
+      <div class="sqc-base">${fmtCr(s.baseCost)}</div>
+    </div>`;
+  }).join('');
+}
+
+function showCurrentAuction(){
+  const sat = SATELLITES[state.currentSatIdx];
+  if(!sat){ endAuction(); return; }
+  const bid = state.highestBid[sat.id];
+  $('myCredits').textContent = getMe().credits;
+  $('currentAuction').innerHTML = `
+    <div class="auction-sat-header">
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <span class="sat-orbit-badge badge-${sat.type}">${sat.type}</span>
+          <span style="font-family:'Orbitron';font-size:0.7rem;color:var(--dim);letter-spacing:0.1em">SAT ${state.currentSatIdx+1}/6</span>
+        </div>
+        <div class="sat-name" style="color:${sat.color}">${sat.name}</div>
+        <div class="sat-tagline">${sat.tagline}</div>
+      </div>
+    </div>
+    <div class="sat-specs-grid">
+      <div class="spec-item tooltip" data-tip="Kepler orbit altitude">
+        <div class="spec-val" style="color:${sat.color}">${sat.altitude>=1000?(sat.altitude/1000).toFixed(1)+'k':sat.altitude} km</div>
+        <div class="spec-lbl">Altitude</div>
+      </div>
+      <div class="spec-item tooltip" data-tip="One-way signal delay">
+        <div class="spec-val">${calcLatency(sat.altitude)} ms</div>
+        <div class="spec-lbl">Latency</div>
+      </div>
+      <div class="spec-item tooltip" data-tip="Ground footprint radius">
+        <div class="spec-val">${calcCoverage(sat.altitude)} km</div>
+        <div class="spec-lbl">Coverage</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-val">${sat.power} kW</div>
+        <div class="spec-lbl">Power</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-val">${sat.payload} Mbps</div>
+        <div class="spec-lbl">Payload</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-val">${sat.antennaGain} dBi</div>
+        <div class="spec-lbl">Ant. Gain</div>
+      </div>
+    </div>
+    <div style="background:var(--deep);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-family:'Share Tech Mono';font-size:0.78rem;color:var(--dim)">
+      ↑ Uplink: ${sat.uplink} GHz &nbsp;|&nbsp; ↓ Downlink: ${sat.downlink} GHz &nbsp;|&nbsp; ${sat.desc}
+    </div>
+    <div class="auction-timer ${state.auctionTimer<=10?'timer-urgent':'timer-normal'}" id="timerDisplay">
+      ${String(state.auctionTimer).padStart(2,'0')}
+    </div>
+    <div class="timer-label">SECONDS REMAINING</div>
+    <div class="bid-area">
+      <div class="current-bid-display">
+        <div class="cbd-label">Highest Bid</div>
+        <div class="cbd-value">${fmtCr(bid.amount)}</div>
+        <div class="cbd-leader">${bid.playerId ? (state.players.find(p=>p.id===bid.playerId)?.name||'Unknown') : 'No bids yet'}</div>
+      </div>
+      <div class="bid-input-group">
+        <input type="number" class="bid-input" id="bidInput" value="${bid.amount+50}" min="${bid.amount+1}" max="${getMe().credits}">
+        <button class="btn btn-bid" id="bidBtn" ${state.playerOwnedSat[state.myId]?'disabled':''} onclick="placeBid()">BID ₹</button>
+      </div>
+    </div>
+    ${state.playerOwnedSat[state.myId]?'<div style="margin-top:10px;font-size:0.8rem;color:var(--dim);font-family:\'Share Tech Mono\'">You already own a satellite this round.</div>':''}
+  `;
+  $('myCredits').textContent = getMe().credits;
+}
+
+function calcLatency(alt){
+  // One-way propagation delay (ms)
+  return Math.round(alt/300*2); // speed of light ≈ 300000 km/s, round trip /2
+}
+function calcCoverage(alt){
+  // Earth radius 6371km, coverage angle approx
+  const R = 6371;
+  const theta = Math.acos(R/(R+alt));
+  return Math.round(theta * R);
+}
+
+function startAuctionTimer(){
+  clearInterval(state.auctionTimerHandle);
+  state.auctionTimer = 60;
+  updateTimer();
+  // Schedule bot bids
+  scheduleBotBids();
+  state.auctionTimerHandle = setInterval(()=>{
+    state.auctionTimer--;
+    updateTimer();
+    if(state.auctionTimer <= 0){ finalizeSat(); }
+  }, 1000);
+}
+
+function updateTimer(){
+  const td = $('timerDisplay');
+  if(td){
+    td.textContent = String(state.auctionTimer).padStart(2,'0');
+    td.className = `auction-timer ${state.auctionTimer<=10?'timer-urgent':'timer-normal'}`;
+  }
+}
+
+function scheduleBotBids(){
+  const sat = SATELLITES[state.currentSatIdx];
+  if(!sat) return;
+  // Schedule random bot bids
+  state.players.filter(p=>p.isBot && !state.playerOwnedSat[p.id]).forEach(bot=>{
+    const delay = Math.random()*45000 + 5000;
+    setTimeout(()=>{
+      if(state.currentSatIdx >= SATELLITES.length) return;
+      if(state.soldSats.includes(sat.id)) return;
+      if(state.playerOwnedSat[bot.id]) return;
+      const cur = state.highestBid[sat.id];
+      const myMax = bot.credits * (0.4 + Math.random()*0.4);
+      const newBid = cur.amount + Math.floor(Math.random()*80+20);
+      if(newBid <= myMax && newBid <= bot.credits){
+        bot.credits -= (newBid - (cur.playerId===bot.id ? cur.amount : 0));
+        state.highestBid[sat.id] = {amount:newBid, playerId:bot.id};
+        addBidLog(bot.name, newBid, sat.name);
+        showCurrentAuction();
+        renderAuctionPlayers();
+      }
+    }, delay);
+  });
+}
+
+function placeBid(){
+  const sat = SATELLITES[state.currentSatIdx];
+  const me = getMe();
+  if(!sat || state.playerOwnedSat[me.id]) return;
+  const amt = parseInt($('bidInput').value);
+  const cur = state.highestBid[sat.id];
+  if(isNaN(amt)){ notify('Enter a valid bid','warn'); return; }
+  if(amt <= cur.amount){ notify(`Bid must exceed ${fmtCr(cur.amount)}`,'warn'); return; }
+  if(amt > me.credits){ notify('Insufficient Space Credits!','error'); return; }
+  // Refund prev if we were winning
+  if(cur.playerId === me.id) me.credits += cur.amount;
+  me.credits -= amt;
+  state.highestBid[sat.id] = {amount:amt, playerId:me.id};
+  addBidLog(me.name, amt, sat.name);
+  showCurrentAuction();
+  renderAuctionPlayers();
+  notify(`Bid placed: ${fmtCr(amt)}`,'success');
+}
+
+function addBidLog(name, amount, satName){
+  const log = $('bidLog');
+  if(!log) return;
+  const now = new Date();
+  const t = `${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  const item = document.createElement('div');
+  item.className = 'bid-log-item';
+  item.innerHTML = `<span class="bli-time">${t}</span><span class="bli-player">${name}</span> bid on ${satName}<span class="bli-amount">${fmtCr(amount)}</span>`;
+  log.insertBefore(item, log.firstChild);
+}
+
+function finalizeSat(){
+  clearInterval(state.auctionTimerHandle);
+  const sat = SATELLITES[state.currentSatIdx];
+  const bid = state.highestBid[sat.id];
+  if(bid.playerId){
+    state.soldSats.push(sat.id);
+    state.playerOwnedSat[bid.playerId] = sat.id;
+    const winner = state.players.find(p=>p.id===bid.playerId);
+    if(winner){
+      // Deduct final bid
+      notify(`${winner.name} won ${sat.name} for ${fmtCr(bid.amount)}!`, winner.id===state.myId?'success':'info');
+    }
+  } else {
+    // Nobody bid — assign to random unowned bot
+    const unowned = state.players.find(p=>p.isBot && !state.playerOwnedSat[p.id]);
+    if(unowned){
+      state.soldSats.push(sat.id);
+      state.playerOwnedSat[unowned.id] = sat.id;
+    }
+  }
+
+  state.currentSatIdx++;
+  if(state.currentSatIdx >= SATELLITES.length || state.players.every(p=>state.playerOwnedSat[p.id])){
+    // All assigned
+    setTimeout(endAuction, 1500);
+    return;
+  }
+  renderAuctionPlayers();
+  renderSatQueue();
+  showCurrentAuction();
+  startAuctionTimer();
+}
+
+function endAuction(){
+  clearInterval(state.auctionTimerHandle);
+  // Assign remaining satellites to players who don't own one
+  let unownedPlayers = state.players.filter(p=>!state.playerOwnedSat[p.id]);
+  let unownedSats = SATELLITES.filter(s=>!state.soldSats.includes(s.id));
+  unownedPlayers.forEach((p,i)=>{
+    if(unownedSats[i]){
+      state.playerOwnedSat[p.id] = unownedSats[i].id;
+    } else {
+      // Give random
+      const s = SATELLITES[Math.floor(Math.random()*SATELLITES.length)];
+      state.playerOwnedSat[p.id] = s.id;
+    }
+  });
+  notify('Auction complete! Preparing simulation…','success');
+  setTimeout(startSimulation, 2000);
+}
+
+// ══════════════════════════════════════════════════════
+//  SIMULATION ROUND
+// ══════════════════════════════════════════════════════
+function startSimulation(){
+  state.cycle = 1;
+  state.autoRun = false;
+  const mySatId = state.playerOwnedSat[state.myId];
+  const mySat = getSat(mySatId);
+  if(mySat){
+    // Pre-fill sliders with sat defaults
+    state.simConfig.altitude = mySat.altitude > 36000 ? 35786 : mySat.altitude;
+    state.simConfig.txPower = mySat.txPower;
+    state.simConfig.txGain = mySat.antennaGain > 55 ? 55 : mySat.antennaGain;
+    state.simConfig.freq = mySat.uplink > 30 ? 30 : mySat.uplink;
+  }
+  syncSliders();
+  renderCycleDots();
+  renderSimLeaderboard();
+  renderMySatCard();
+  updateTheoryBox();
+  updateCalcs();
+  startOrbitAnimation();
+  showScreen('simulation');
+}
+
+function syncSliders(){
+  const sc = state.simConfig;
+  $('altSlider').value = sc.altitude; $('altVal').textContent = sc.altitude;
+  $('incSlider').value = sc.inclination; $('incVal').textContent = sc.inclination;
+  $('eccSlider').value = sc.eccentricity; $('eccVal').textContent = sc.eccentricity.toFixed(2);
+  $('txSlider').value = sc.txPower; $('txVal').textContent = sc.txPower;
+  $('txgSlider').value = sc.txGain; $('txgVal').textContent = sc.txGain;
+  $('freqSlider').value = sc.freq; $('freqVal').textContent = sc.freq.toFixed(1);
+  $('solarSlider').value = sc.solar; $('solarVal').textContent = sc.solar;
+  $('battSlider').value = sc.battery; $('battVal').textContent = sc.battery;
+}
+
+// Slider listeners
+['alt','inc','ecc','tx','txg','freq','solar','batt'].forEach(k=>{
+  const slider = $(k+'Slider');
+  const valEl = $(k+'Val');
+  if(slider) slider.addEventListener('input',()=>{
+    const v = parseFloat(slider.value);
+    if(k==='ecc') valEl.textContent = v.toFixed(2);
+    else if(k==='freq') valEl.textContent = v.toFixed(1);
+    else if(k==='inc') valEl.textContent = v.toFixed(1);
+    else valEl.textContent = v;
+    if(k==='alt') state.simConfig.altitude = v;
+    else if(k==='inc') state.simConfig.inclination = v;
+    else if(k==='ecc') state.simConfig.eccentricity = v;
+    else if(k==='tx') state.simConfig.txPower = v;
+    else if(k==='txg') state.simConfig.txGain = v;
+    else if(k==='freq') state.simConfig.freq = v;
+    else if(k==='solar') state.simConfig.solar = v;
+    else if(k==='batt') state.simConfig.battery = v;
+    updateCalcs();
+    updateOrbitCanvas();
+  });
+});
+
+// ── Physics calculations ──
+function keplerPeriod(alt){
+  // T = 2π √(a³/μ), μ=3.986e14, a in meters
+  const R = 6.371e6;
+  const a = R + alt*1000;
+  const mu = 3.986e14;
+  const T = 2*Math.PI*Math.sqrt(a**3/mu);
+  return T/60; // minutes
+}
+
+function freeSpacePath(distKm, freqGHz){
+  return 20*Math.log10(distKm) + 20*Math.log10(freqGHz) + 92.44;
+}
+
+function updateCalcs(){
+  const sc = state.simConfig;
+  const alt = sc.altitude;
+
+  // Orbital period
+  const T = keplerPeriod(alt);
+  $('orbPeriod').textContent = T < 60 ? T.toFixed(1)+' min' : (T/60).toFixed(2)+' hr';
+  const orbT = alt < 2000 ? '<span style="color:var(--green)">LEO</span>'
+             : alt < 20000 ? '<span style="color:var(--glow)">MEO</span>'
+             : '<span style="color:var(--glow2)">GEO</span>';
+  $('orbType').innerHTML = orbT;
+
+  // Coverage footprint
+  const cov = calcCoverage(alt);
+  const covPct = (Math.acos(6371/(6371+alt))*2*6371**2*Math.PI/(4*Math.PI*6371**2)*100).toFixed(1);
+  $('footprintVal').textContent = `${cov} km (${covPct}%)`;
+
+  // Latency (round-trip)
+  const lat = (alt / 300 * 2).toFixed(0);
+  $('latencyVal').textContent = lat + ' ms';
+
+  // Doppler shift (max, LEO at ~7.5 km/s orbital speed)
+  const v_orbital = Math.sqrt(3.986e14/(6371000+alt*1000));
+  const doppler = (sc.freq * 1e9 * v_orbital / 3e8 / 1e3).toFixed(2);
+  $('dopplerVal').textContent = `${doppler} kHz`;
+
+  // Eclipse fraction (approx)
+  const eclipseAngle = Math.asin(6371/(6371+alt));
+  const eclipsePct = (eclipseAngle/Math.PI * 100).toFixed(1);
+  $('eclipseVal').textContent = eclipsePct + '%';
+
+  // Link budget
+  const distKm = alt + 50; // slant range approx
+  const fspl = freeSpacePath(distKm, sc.freq);
+  const grGain = 40; // ground station
+  const receivedPower = sc.txPower + sc.txGain + grGain - fspl;
+  const threshold = -110; // dBW
+  const margin = receivedPower - threshold;
+  const linkOk = margin > 0;
+  $('linkResult').innerHTML = `Pr = <span style="color:${linkOk?'var(--green)':'var(--red)'}">${receivedPower.toFixed(1)} dBW</span>
+    ${linkOk ? '✓ LINK OK (+'+margin.toFixed(1)+' dB margin)' : '✗ LINK FAIL ('+margin.toFixed(1)+' dB)'}`;
+
+  // Power
+  const solarOutput = sc.solar * 0.3; // kW (30% efficiency, 1kW/m² solar constant)
+  const powerLoad = sc.txPower * 0.001 * 10 + 0.5; // rough estimate kW
+  const powerPct = Math.min(100, solarOutput/powerLoad*100);
+  const powerOk = solarOutput >= powerLoad;
+  $('powerStatus').textContent = powerOk ? '✓ NOMINAL' : '⚠ DEFICIT';
+  $('powerStatus').style.color = powerOk ? 'var(--green)' : 'var(--red)';
+  const bar = $('powerBar');
+  bar.style.width = Math.min(100,powerPct)+'%';
+  bar.style.background = powerOk ? 'var(--green)' : 'var(--red)';
+
+  // Revenue estimate
+  const coverage = parseFloat(covPct);
+  const latNum = parseFloat(lat);
+  const latBonus = latNum < 50 ? 1.5 : latNum < 250 ? 1.2 : latNum < 500 ? 1.0 : 0.7;
+  const signalQ = Math.max(0, Math.min(1, (margin+20)/30));
+  const powerEff = Math.min(1, powerPct/100);
+  const mySat = getSat(state.playerOwnedSat[state.myId]);
+  const satMult = mySat ? mySat.payload/200 : 1;
+  const rev = Math.round(coverage * signalQ * latBonus * powerEff * satMult * 15);
+  $('revenueEstimate').textContent = `₹${rev}/cycle`;
+  $('revenueBreakdown').textContent = `Coverage(${coverage}%) × Signal(${(signalQ*100).toFixed(0)}%) × Latency(×${latBonus}) × Power(${(powerEff*100).toFixed(0)}%)`;
+  state._currentCycleRev = rev;
+  state._currentLinkOk = linkOk;
+  state._currentPowerOk = powerOk;
+}
+
+function renderCycleDots(){
+  const dots = Array.from({length:10},(_,i)=>`
+    <div class="cycle-dot ${i+1<state.cycle?'done':i+1===state.cycle?'current':''}"></div>
+  `).join('');
+  $('cycleDots').innerHTML = dots;
+}
+
+function runCycle(){
+  if(state.cycle > 10){ notify('Simulation complete!','info'); return; }
+  updateCalcs();
+  const rev = state._currentCycleRev || 0;
+  const linkOk = state._currentLinkOk;
+  const powerOk = state._currentPowerOk;
+  const uptimeBonus = (linkOk && powerOk) ? 1 : 0.5;
+
+  // My results
+  state.playerRevenues[state.myId] = (state.playerRevenues[state.myId]||0) + rev;
+  state.playerUptimes[state.myId] = (state.playerUptimes[state.myId]||0) + uptimeBonus*10;
+
+  // Bots auto-play with random config scores
+  state.players.filter(p=>p.isBot).forEach(bot=>{
+    const botSatId = state.playerOwnedSat[bot.id];
+    const botSat = getSat(botSatId);
+    if(!botSat) return;
+    const botRev = Math.round((50 + Math.random()*200) * (botSat.payload/200));
+    state.playerRevenues[bot.id] = (state.playerRevenues[bot.id]||0) + botRev;
+    state.playerUptimes[bot.id] = (state.playerUptimes[bot.id]||0) + (Math.random()>0.2?10:5);
+  });
+
+  $('myRevenue').textContent = state.playerRevenues[state.myId];
+  
+  const msg = document.createElement('div');
+  msg.style.cssText = `padding:12px 16px;background:${linkOk&&powerOk?'rgba(0,255,136,0.1)':'rgba(255,183,0,0.1)'};
+    border-radius:8px;border-left:3px solid ${linkOk&&powerOk?'var(--green)':'var(--amber)'};
+    font-family:'Share Tech Mono';font-size:0.82rem;margin-bottom:8px;`;
+  msg.innerHTML = `Cycle ${state.cycle}: Revenue <b style="color:var(--amber)">${fmtCr(rev)}</b> | 
+    Link: <span style="color:${linkOk?'var(--green)':'var(--red)'}">${linkOk?'✓ OK':'✗ FAIL'}</span> | 
+    Power: <span style="color:${powerOk?'var(--green)':'var(--red)'}">${powerOk?'✓ OK':'⚠ DEFICIT'}</span>`;
+  const box = $('cycleResultMsg');
+  box.insertBefore(msg, box.firstChild);
+  if(box.children.length > 4) box.lastChild.remove();
+
+  state.cycle++;
+  renderCycleDots();
+  renderSimLeaderboard();
+  $('cycleNum').textContent = Math.min(state.cycle, 10);
+
+  if(state.cycle > 10){
+    clearInterval(state.autoHandle);
+    state.autoRun = false;
+    notify('All 10 cycles complete! Calculating final rankings…','success');
+    $('runCycleBtn').disabled = true;
+    $('autoRunBtn').disabled = true;
+    setTimeout(showResults, 2500);
+  }
+}
+
+$('runCycleBtn').addEventListener('click', runCycle);
+$('autoRunBtn').addEventListener('click', ()=>{
+  if(state.autoRun){
+    clearInterval(state.autoHandle);
+    state.autoRun = false;
+    $('autoRunBtn').textContent = '⚡ AUTO-RUN';
+  } else {
+    state.autoRun = true;
+    $('autoRunBtn').textContent = '⏹ STOP';
+    state.autoHandle = setInterval(()=>{
+      if(state.cycle > 10){ clearInterval(state.autoHandle); return; }
+      runCycle();
+    }, 1500);
+  }
+});
+
+function renderSimLeaderboard(){
+  const ranked = [...state.players].sort((a,b)=>(state.playerRevenues[b.id]||0)-(state.playerRevenues[a.id]||0));
+  $('leaderboard').innerHTML = ranked.map((p,i)=>{
+    const satId = state.playerOwnedSat[p.id];
+    const sat = getSat(satId);
+    const rev = state.playerRevenues[p.id]||0;
+    const uptime = (state.playerUptimes[p.id]||0);
+    const ci = state.players.indexOf(p);
+    return `<div class="lb-row${p.id===state.myId?' you':''}">
+      <div class="lb-rank${i===0?' r1':i===1?' r2':i===2?' r3':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+      <div class="pc-avatar" style="width:28px;height:28px;font-size:0.65rem;background:${AVATAR_COLORS[ci]}22;color:${AVATAR_COLORS[ci]};border:1px solid ${AVATAR_COLORS[ci]}44;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${p.name.slice(0,2).toUpperCase()}
+      </div>
+      <div class="lb-info">
+        <div class="lb-name">${p.name}${p.id===state.myId?' <span class="tag-you">YOU</span>':''}</div>
+        <div class="lb-sat">${sat?sat.name:'—'}</div>
+      </div>
+      <div>
+        <div class="lb-score">${fmtCr(rev)}</div>
+        <div class="lb-rev">${uptime.toFixed(0)}% up</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMySatCard(){
+  const satId = state.playerOwnedSat[state.myId];
+  const sat = getSat(satId);
+  if(!sat){ $('mySatCard').innerHTML = '<div style="color:var(--dim)">No satellite assigned</div>'; return; }
+  $('mySatCard').innerHTML = `
+    <div style="font-family:'Orbitron';font-size:1rem;color:${sat.color};margin-bottom:8px">${sat.name}</div>
+    <div style="margin-bottom:6px"><span class="sat-orbit-badge badge-${sat.type}">${sat.type}</span></div>
+    <div style="font-family:'Share Tech Mono';font-size:0.78rem;line-height:1.8;color:var(--dim)">
+      Alt: <span style="color:var(--text)">${sat.altitude} km</span><br>
+      Payload: <span style="color:var(--text)">${sat.payload} Mbps</span><br>
+      Power: <span style="color:var(--text)">${sat.power} kW</span><br>
+      Tx Gain: <span style="color:var(--text)">${sat.antennaGain} dBi</span>
+    </div>
+  `;
+}
+
+const THEORY_TIPS = [
+  `<b style="color:var(--glow)">Kepler's 3rd Law:</b> T² ∝ a³ — Orbital period increases with altitude. GEO satellites take 24 hours; ISS takes 90 minutes!`,
+  `<b style="color:var(--glow)">Free-Space Path Loss:</b> FSPL = 20log(d) + 20log(f) + 92.4 dB. Higher frequency = more loss. Balance gain vs. power!`,
+  `<b style="color:var(--glow)">Coverage Tradeoff:</b> GEO covers 42% of Earth from one spot. But LEO gives 20× less latency — critical for real-time apps.`,
+  `<b style="color:var(--glow)">Doppler Effect:</b> As a LEO satellite approaches at 7.5 km/s, radio frequency appears shifted. Ground stations must compensate!`,
+  `<b style="color:var(--glow)">Link Budget:</b> P_received = P_tx + G_tx + G_rx − FSPL − losses. If P_rx > threshold (−110 dBW), link is stable.`,
+  `<b style="color:var(--glow)">Eclipse Period:</b> Satellites orbit into Earth's shadow. Battery must sustain payload during eclipse — size it for 40+ min!`,
+  `<b style="color:var(--glow)">Inclination:</b> A 0° orbit only covers equatorial regions. 90° (polar) gives global coverage over multiple passes.`,
+];
+let theoryIdx = 0;
+function updateTheoryBox(){
+  $('theoryBox').innerHTML = THEORY_TIPS[theoryIdx % THEORY_TIPS.length];
+  theoryIdx++;
+}
+setInterval(()=>{ if(state.screen==='simulation') updateTheoryBox(); }, 8000);
+
+// ── Orbit Canvas Animation ──
+let orbitAnimHandle;
+function startOrbitAnimation(){
+  cancelAnimationFrame(orbitAnimHandle);
+  let t = 0;
+  function draw(){
+    updateOrbitCanvas(t);
+    t += 0.01;
+    orbitAnimHandle = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function updateOrbitCanvas(t=0){
+  const canvas = $('orbitCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 600;
+  canvas.width = W; canvas.height = 280;
+  const cx = W/2, cy = 140;
+
+  ctx.fillStyle = '#060d1a';
+  ctx.fillRect(0,0,W,280);
+
+  // Earth
+  const earthR = 60;
+  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,earthR);
+  grad.addColorStop(0,'#1a6b3a'); grad.addColorStop(0.5,'#1d4ed8'); grad.addColorStop(1,'#0d2060');
+  ctx.beginPath(); ctx.arc(cx,cy,earthR,0,Math.PI*2);
+  ctx.fillStyle=grad; ctx.fill();
+  // Atmosphere glow
+  const atmosGrad = ctx.createRadialGradient(cx,cy,earthR,cx,cy,earthR+15);
+  atmosGrad.addColorStop(0,'rgba(100,180,255,0.3)'); atmosGrad.addColorStop(1,'transparent');
+  ctx.beginPath(); ctx.arc(cx,cy,earthR+15,0,Math.PI*2);
+  ctx.fillStyle=atmosGrad; ctx.fill();
+
+  // Grid lines
+  ctx.strokeStyle='rgba(26,58,92,0.3)'; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  [80,120,160,200,230].forEach(r=>{
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  const alt = state.simConfig.altitude;
+  const maxAlt = 36000;
+  const normalizedAlt = Math.sqrt(alt/maxAlt); // sqrt for visual spread
+  const orbitR = earthR + 25 + normalizedAlt * (Math.min(cx,cy)-earthR-45);
+
+  // My satellite orbit
+  const inc = state.simConfig.inclination / 90; // normalized
+  const ecc = state.simConfig.eccentricity;
+
+  // Draw elliptical orbit
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(-inc*0.5);
+  ctx.scale(1, 1-inc*0.3);
+  const a = orbitR; const b = a*Math.sqrt(1-ecc**2);
+  ctx.beginPath(); ctx.ellipse(0,0,a,b,0,0,Math.PI*2);
+  const mySat = getSat(state.playerOwnedSat[state.myId]);
+  ctx.strokeStyle = mySat ? mySat.color+'88' : '#00d4ff88';
+  ctx.lineWidth=1.5; ctx.stroke();
+
+  // Satellite position
+  if(t !== undefined){
+    const angle = (t||0) * (LEOSpeed(alt));
+    const sx = a*Math.cos(angle); const sy = b*Math.sin(angle);
+    ctx.shadowBlur=12; ctx.shadowColor = mySat?mySat.color:'#00d4ff';
+    ctx.fillStyle = mySat?mySat.color:'#00d4ff';
+    ctx.beginPath(); ctx.arc(sx,sy,6,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+
+    // Coverage beam
+    const footR = calcCoverage(alt);
+    const footPx = Math.min(60, footR/200);
+    ctx.beginPath();
+    ctx.moveTo(0,0); // Earth center
+    ctx.lineTo(sx-footPx, sy+footPx); ctx.lineTo(sx+footPx, sy+footPx);
+    ctx.closePath();
+    ctx.fillStyle=(mySat?mySat.color:'#00d4ff')+'22';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Other player orbits (simple circles)
+  state.players.filter(p=>p.id!==state.myId).forEach((p,i)=>{
+    const pSatId = state.playerOwnedSat[p.id];
+    const pSat = getSat(pSatId);
+    if(!pSat) return;
+    const pAlt = pSat.altitude;
+    const pNorm = Math.sqrt(pAlt/maxAlt);
+    const pR = earthR + 25 + pNorm*(Math.min(cx,cy)-earthR-45);
+    ctx.beginPath(); ctx.arc(cx,cy,pR,0,Math.PI*2);
+    ctx.strokeStyle = AVATAR_COLORS[state.players.indexOf(p)]+'44';
+    ctx.lineWidth=1; ctx.setLineDash([2,4]); ctx.stroke(); ctx.setLineDash([]);
+  });
+
+  // Labels
+  ctx.fillStyle='rgba(200,224,244,0.6)'; ctx.font='10px "Exo 2"';
+  ctx.textAlign='center';
+  ctx.fillText('LEO', cx + earthR+15, cy+4);
+  ctx.fillText('MEO', cx + earthR+95, cy+4);
+  if(W > 450) ctx.fillText('GEO', cx + (Math.min(cx,cy)-20), cy+4);
+}
+
+function LEOSpeed(alt){
+  // Orbital angular speed for animation
+  const period = keplerPeriod(alt); // minutes
+  return 2*Math.PI / (period * 200); // animation speed
+}
+
+// ══════════════════════════════════════════════════════
+//  RESULTS
+// ══════════════════════════════════════════════════════
+function showResults(){
+  // Calculate efficiency
+  state.players.forEach(p=>{
+    const satId = state.playerOwnedSat[p.id];
+    const sat = getSat(satId);
+    const rev = state.playerRevenues[p.id]||0;
+    const cost = sat ? sat.baseCost : 1;
+    state.playerEfficiencies[p.id] = parseFloat((rev/cost).toFixed(2));
+  });
+
+  const ranked = [...state.players].sort((a,b)=>{
+    const scoreA = (state.playerRevenues[a.id]||0)*0.6 + (state.playerUptimes[a.id]||0)*2 + (state.playerEfficiencies[a.id]||0)*10;
+    const scoreB = (state.playerRevenues[b.id]||0)*0.6 + (state.playerUptimes[b.id]||0)*2 + (state.playerEfficiencies[b.id]||0)*10;
+    return scoreB - scoreA;
+  });
+
+  // Podium (top 3)
+  const medals = ['🥇','🥈','🥉'];
+  const podiumLabels = ['ORBIT MASTER','STELLAR PILOT','SPACE ROOKIE'];
+  $('podium').innerHTML = ranked.slice(0,3).map((p,i)=>{
+    const satId = state.playerOwnedSat[p.id];
+    const sat = getSat(satId);
+    const rev = state.playerRevenues[p.id]||0;
+    const ci = state.players.indexOf(p);
+    return `<div class="podium-spot p${i+1}" style="border-color:${['var(--gold)','var(--silver)','var(--bronze)'][i]}">
+      <div class="podium-medal">${medals[i]}</div>
+      <div class="podium-name">${p.name}${p.id===state.myId?' <span class="tag-you">YOU</span>':''}</div>
+      <div class="podium-score">${fmtCr(rev)}</div>
+      <div class="podium-title" style="color:${['var(--gold)','var(--silver)','var(--bronze)'][i]}">${podiumLabels[i]}</div>
+      <div class="podium-sat">${sat?sat.name:'—'}</div>
+    </div>`;
+  }).join('');
+
+  // Full table
+  $('resultsTableBody').innerHTML = ranked.map((p,i)=>{
+    const satId = state.playerOwnedSat[p.id];
+    const sat = getSat(satId);
+    const rev = state.playerRevenues[p.id]||0;
+    const uptime = (state.playerUptimes[p.id]||0).toFixed(0);
+    const eff = (state.playerEfficiencies[p.id]||0).toFixed(2);
+    const total = Math.round(rev*0.6 + parseFloat(uptime)*2 + parseFloat(eff)*10);
+    return `<tr class="${p.id===state.myId?'you':''}">
+      <td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+      <td>${p.name}${p.id===state.myId?' <span class="tag-you">YOU</span>':''}</td>
+      <td style="color:${sat?sat.color:'var(--dim)'}">${sat?sat.name:'—'}</td>
+      <td style="color:var(--amber)">${fmtCr(rev)}</td>
+      <td>${uptime}%</td>
+      <td>${eff}×</td>
+      <td style="color:var(--glow);font-family:'Orbitron';font-weight:700">${total}</td>
+    </tr>`;
+  }).join('');
+
+  showScreen('results');
+  if(ranked[0]?.id === state.myId) notify('🏆 YOU WIN! Master of Orbit Economics!','success');
+}
+
+$('playAgainBtn').addEventListener('click',()=>location.reload());
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+setTimeout(()=>{ $('loader').classList.add('gone'); },1800);
+</script>
+</body>
+</html>
